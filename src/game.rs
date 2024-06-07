@@ -56,7 +56,7 @@ impl PieceColor {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Piece {
     pub piece_type: PieceType,
     pub piece_color: PieceColor,
@@ -73,7 +73,21 @@ pub struct Board {
     winner: Option<PieceColor>,
 }
 
+impl Default for Board {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Board {
+    pub fn new() -> Self {
+        Self {
+            grid: [None; 64],
+            turn: PieceColor::White,
+            winner: None,
+        }
+    }
+
     fn pos_to_idx(pos: Pos) -> usize {
         (pos.0 * 8 + pos.1) as usize
     }
