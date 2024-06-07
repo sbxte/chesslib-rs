@@ -27,11 +27,31 @@ pub enum PieceColor {
     Black,
 }
 
+impl std::fmt::Display for PieceColor {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                PieceColor::White => "White",
+                PieceColor::Black => "Black",
+            }
+        )
+    }
+}
+
 impl PieceColor {
     pub fn sign(&self) -> i8 {
         match self {
             Self::White => 1,
             Self::Black => -1,
+        }
+    }
+
+    pub fn invert(&self) -> Self {
+        match self {
+            Self::White => Self::Black,
+            Self::Black => Self::White,
         }
     }
 }
@@ -69,22 +89,40 @@ impl Board {
         }
     }
 
-    pub fn apply_move(&mut self, pmove: Move) {
+    pub fn apply_move(&mut self, pmove: Move) -> Result<(), TurnErr> {
         if self.winner.is_some() {
-            return;
+            return Ok(());
         }
+        if self.turn != pmove.piece_color {
+            return Err(TurnErr(self.turn));
+        }
+
         let piece = self.grid[Self::pos_to_idx(pmove.from)].clone();
         self.grid[Self::pos_to_idx(pmove.from)] = None;
         self.grid[Self::pos_to_idx(pmove.to)] = piece;
+
+        self.turn = self.turn.invert();
+
         if let Some(p) = pmove.captures
             && p == PieceType::King
         {
             self.winner = Some(pmove.piece_color);
         }
+
+        Ok(())
     }
 
     pub fn get_winner(&self) -> Option<PieceColor> {
         self.winner
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TurnErr(PieceColor);
+
+impl std::fmt::Display for TurnErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid turn. Current turn: {}", self.0)
     }
 }
 
@@ -103,16 +141,15 @@ pub enum MoveErr {
     MoveOpponent,
     TakeSelf,
     NoPiece,
-    IllegalPieceMove,
     InvalidCapture,
+    IllegalPieceMove,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum MoveNotationErr {
     MoveErr(MoveErr),
-    ParsePosErr(ParsePosErr),
+    ParseNotationError(ParseNotationErr),
     IndeterminateMove, // More than one possible piece to move; Which piece to move is not clear
-    TooShort,          // Input string too short
 }
 
 impl Move {
@@ -268,7 +305,9 @@ impl Move {
         turn: PieceColor,
     ) -> Result<Self, MoveNotationErr> {
         if input.len() < 3 {
-            return Err(MoveNotationErr::TooShort);
+            return Err(MoveNotationErr::ParseNotationError(
+                ParseNotationErr::TooShort,
+            ));
         }
         let piece_type = PieceType::from(input.chars().nth(0).unwrap());
         let input = if let PieceType::Pawn = piece_type {
@@ -281,7 +320,7 @@ impl Move {
         let input = if is_capture { &input[1..] } else { input };
 
         let to = match Pos::from_notation(&input[input.len() - 2..]) {
-            Err(x) => return Err(MoveNotationErr::ParsePosErr(x)),
+            Err(x) => return Err(MoveNotationErr::ParseNotationError(x)),
             Ok(x) => x,
         };
         let captures = if is_capture {
@@ -443,6 +482,36 @@ impl Move {
     }
 }
 
+impl std::fmt::Display for MoveErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Move Error: {}",
+            match self {
+                MoveErr::MoveOpponent => "Cannot move opponent's piece",
+                MoveErr::TakeSelf => "Cannot take your own piece",
+                MoveErr::NoPiece => "No pieces to move",
+                MoveErr::InvalidCapture => "Invalid capture",
+                MoveErr::IllegalPieceMove => "Illegal move",
+            }
+        )
+    }
+}
+
+impl std::fmt::Display for MoveNotationErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Move Notation Error: {}",
+            match self {
+                MoveNotationErr::MoveErr(e) => format!("{}", e),
+                MoveNotationErr::ParseNotationError(e) => format!("{}", e),
+                MoveNotationErr::IndeterminateMove => "Indeterminate move".to_string(),
+            }
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Pos(pub i8, pub i8);
 
@@ -450,7 +519,7 @@ pub struct Pos(pub i8, pub i8);
 pub struct PartialPos(pub Option<i8>, pub Option<i8>);
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum ParsePosErr {
+pub enum ParseNotationErr {
     TooShort,
     InvalidColumn,
     InvalidRow,
@@ -491,9 +560,9 @@ impl Pos {
     }
 
     /// Constructs a position from chess notation
-    pub fn from_notation(input: &str) -> Result<Self, ParsePosErr> {
+    pub fn from_notation(input: &str) -> Result<Self, ParseNotationErr> {
         if input.len() < 2 {
-            return Err(ParsePosErr::TooShort);
+            return Err(ParseNotationErr::TooShort);
         }
         let mut chars = input.chars();
         let col = match chars.next().unwrap().to_ascii_lowercase() {
@@ -505,12 +574,12 @@ impl Pos {
             'f' => 5,
             'g' => 6,
             'h' => 7,
-            _ => return Err(ParsePosErr::InvalidColumn),
+            _ => return Err(ParseNotationErr::InvalidColumn),
         };
         let row = {
             let c = chars.next().unwrap();
             if !c.is_ascii_digit() {
-                return Err(ParsePosErr::InvalidRow);
+                return Err(ParseNotationErr::InvalidRow);
             }
             c as i8 - 48
         };
@@ -565,5 +634,19 @@ impl From<(i8, i8)> for Pos {
 impl From<(u8, u8)> for Pos {
     fn from(value: (u8, u8)) -> Self {
         Self::new_unchecked(value.0 as i8, value.1 as i8)
+    }
+}
+
+impl std::fmt::Display for ParseNotationErr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Parse Position Error: {}",
+            match self {
+                ParseNotationErr::TooShort => "text too short",
+                ParseNotationErr::InvalidColumn => "invalid column character",
+                ParseNotationErr::InvalidRow => "invalid row index",
+            }
+        )
     }
 }
