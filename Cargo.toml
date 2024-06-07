@@ -1,6 +1,9 @@
 [package]
-name = "chess-engine-rs"
+name = "chesslib"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.82"
+nom = "7.1.3"
+thiserror = "1.0.59"
