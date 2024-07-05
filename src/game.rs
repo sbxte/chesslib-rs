@@ -121,12 +121,12 @@ impl Board {
         board.grid[47] = Some(Piece::new(PieceType::Bishop, PieceColor::Black)); // 5 * 8 + 7
 
         // Queens
-        board.grid[24] = Some(Piece::new(PieceType::Queen, PieceColor::White)); // 3 * 8 + 0
-        board.grid[31] = Some(Piece::new(PieceType::Queen, PieceColor::Black)); // 3 * 8 + 7
+        board.grid[32] = Some(Piece::new(PieceType::Queen, PieceColor::White)); // 4 * 8 + 0
+        board.grid[39] = Some(Piece::new(PieceType::Queen, PieceColor::Black)); // 4 * 8 + 7
 
         // Kings
-        board.grid[32] = Some(Piece::new(PieceType::King, PieceColor::White)); // 4 * 8 + 0
-        board.grid[39] = Some(Piece::new(PieceType::King, PieceColor::Black)); // 4 * 8 + 7
+        board.grid[24] = Some(Piece::new(PieceType::King, PieceColor::White)); // 3 * 8 + 0
+        board.grid[31] = Some(Piece::new(PieceType::King, PieceColor::Black)); // 3 * 8 + 7
 
         board
     }
