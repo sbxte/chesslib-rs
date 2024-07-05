@@ -1,3 +1,5 @@
+use thiserror::Error;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum PieceType {
     Pawn,
@@ -170,7 +172,7 @@ impl Board {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Error)]
 pub struct TurnErr(PieceColor);
 
 impl std::fmt::Display for TurnErr {
@@ -189,7 +191,7 @@ pub struct Move {
     captures: Option<PieceType>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Error)]
 pub enum MoveErr {
     MoveOpponent,
     TakeSelf,
@@ -198,7 +200,7 @@ pub enum MoveErr {
     IllegalPieceMove,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Error)]
 pub enum MoveNotationErr {
     MoveErr(MoveErr),
     ParseNotationError(ParseNotationErr),
