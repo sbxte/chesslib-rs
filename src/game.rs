@@ -265,10 +265,15 @@ impl Move {
         let diff_x = to.0 - from.0;
         match piece_from.piece_type {
             PieceType::Pawn => {
-                if diff_y != turn.sign() {
-                    return Err(MoveErr::IllegalPieceMove);
-                }
-                if diff_x.abs() > 1 || (diff_x.abs() == 1 && piece_to.is_some()) {
+                if diff_y != turn.sign() * 2 {
+                    if diff_y != turn.sign()
+                        || diff_x.abs() > 1
+                        || (diff_x.abs() == 1 && piece_to.is_some())
+                    {
+                        return Err(MoveErr::IllegalPieceMove);
+                    }
+                // 2-square moves
+                } else if to.1 != 3 - turn.sign().min(0) || diff_x != 0 {
                     return Err(MoveErr::IllegalPieceMove);
                 }
             }
@@ -419,7 +424,18 @@ impl Move {
                     check!(col, to.1 - turn.sign());
                 } else {
                     check!(to.0, to.1 - turn.sign());
-                };
+
+                    // Check 2-squares moves
+                    if let PieceColor::White = turn
+                        && to.1 == 3
+                    {
+                        check!(to.0, 1);
+                    } else if let PieceColor::Black = turn
+                        && to.1 == 4
+                    {
+                        check!(to.0, 6);
+                    }
+                }
             }
             PieceType::King => {
                 for c in (0.max(to.0 - 1))..(8.min(to.0 + 1)) {
