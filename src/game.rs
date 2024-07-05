@@ -142,7 +142,7 @@ impl Board {
     pub fn set_board(&mut self, other: &Self) {
         self.turn = other.turn;
         for (i, square) in self.grid.iter_mut().enumerate() {
-            *square = other.grid[i].clone();
+            *square = other.grid[i];
         }
     }
 
@@ -154,7 +154,7 @@ impl Board {
             return Err(TurnErr(self.turn));
         }
 
-        let piece = self.grid[Self::pos_to_idx(pmove.from)].clone();
+        let piece = self.grid[Self::pos_to_idx(pmove.from)];
         self.grid[Self::pos_to_idx(pmove.from)] = None;
         self.grid[Self::pos_to_idx(pmove.to)] = piece;
 
