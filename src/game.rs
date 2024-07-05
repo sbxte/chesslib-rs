@@ -68,9 +68,9 @@ pub struct Board {
     /// each column would have [piece, piece, ..., piece]
     /// so the grid would be [[piece, ...], [piece, ...], ...]
     /// to access a piece at row and col, use grid[row * 8 + col]
-    grid: [Option<Piece>; 64],
-    turn: PieceColor,
-    winner: Option<PieceColor>,
+    pub grid: [Option<Piece>; 64],
+    pub turn: PieceColor,
+    pub winner: Option<PieceColor>,
 }
 
 impl Default for Board {
@@ -124,10 +124,6 @@ impl Board {
         }
 
         Ok(())
-    }
-
-    pub fn get_winner(&self) -> Option<PieceColor> {
-        self.winner
     }
 }
 
