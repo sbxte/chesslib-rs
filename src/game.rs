@@ -359,7 +359,7 @@ impl Move {
         board: &Board,
         turn: PieceColor,
     ) -> Result<Self, MoveNotationErr> {
-        if input.len() < 3 {
+        if input.len() < 2 {
             return Err(MoveNotationErr::ParseNotationError(
                 ParseNotationErr::TooShort,
             ));
