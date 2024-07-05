@@ -62,6 +62,15 @@ pub struct Piece {
     pub piece_color: PieceColor,
 }
 
+impl Piece {
+    pub fn new(piece_type: PieceType, piece_color: PieceColor) -> Self {
+        Self {
+            piece_type,
+            piece_color,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Board {
     /// [col, col, ..., col]
@@ -81,11 +90,45 @@ impl Default for Board {
 
 impl Board {
     pub fn new() -> Self {
-        Self {
+        let mut board = Self {
             grid: [None; 64],
             turn: PieceColor::White,
             winner: None,
+        };
+
+        // Pawns
+        for x in 0..8 {
+            board.grid[x * 8 + 1] = Some(Piece::new(PieceType::Pawn, PieceColor::White));
+            board.grid[x * 8 + 6] = Some(Piece::new(PieceType::Pawn, PieceColor::Black));
         }
+
+        // Rooks
+        board.grid[0] = Some(Piece::new(PieceType::Rook, PieceColor::White)); // 0 * 8 + 0
+        board.grid[56] = Some(Piece::new(PieceType::Rook, PieceColor::White)); // 7 * 8 + 0
+        board.grid[7] = Some(Piece::new(PieceType::Rook, PieceColor::Black)); // 0 * 8 + 7
+        board.grid[63] = Some(Piece::new(PieceType::Rook, PieceColor::Black)); // 7 * 8 + 7
+
+        // Knights
+        board.grid[8] = Some(Piece::new(PieceType::Knight, PieceColor::White)); // 1 * 8 + 0
+        board.grid[48] = Some(Piece::new(PieceType::Knight, PieceColor::White)); // 6 * 8 + 0
+        board.grid[15] = Some(Piece::new(PieceType::Knight, PieceColor::Black)); // 1 * 8 + 7
+        board.grid[55] = Some(Piece::new(PieceType::Knight, PieceColor::Black)); // 6 * 8 + 7
+
+        // Bishops
+        board.grid[16] = Some(Piece::new(PieceType::Bishop, PieceColor::White)); // 2 * 8 + 0
+        board.grid[40] = Some(Piece::new(PieceType::Bishop, PieceColor::White)); // 5 * 8 + 0
+        board.grid[23] = Some(Piece::new(PieceType::Bishop, PieceColor::Black)); // 2 * 8 + 7
+        board.grid[47] = Some(Piece::new(PieceType::Bishop, PieceColor::Black)); // 5 * 8 + 7
+
+        // Queens
+        board.grid[24] = Some(Piece::new(PieceType::Queen, PieceColor::White)); // 3 * 8 + 0
+        board.grid[31] = Some(Piece::new(PieceType::Queen, PieceColor::Black)); // 3 * 8 + 7
+
+        // Kings
+        board.grid[32] = Some(Piece::new(PieceType::King, PieceColor::White)); // 4 * 8 + 0
+        board.grid[39] = Some(Piece::new(PieceType::King, PieceColor::Black)); // 4 * 8 + 7
+
+        board
     }
 
     fn pos_to_idx(pos: Pos) -> usize {
