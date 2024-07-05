@@ -403,9 +403,6 @@ impl Move {
         let mut from = None;
         macro_rules! check {
             ($x: expr, $y: expr) => {
-                if from.is_some() {
-                    return Err(MoveNotationErr::IndeterminateMove);
-                }
                 if let Some(f) = Pos::new_bounded($x, $y)
                     && let Some(p) = board.get_piece(f)
                     && p.piece_type == piece_type
