@@ -636,7 +636,7 @@ impl Pos {
             if !c.is_ascii_digit() {
                 return Err(ParseNotationErr::InvalidRow);
             }
-            c as i8 - 48
+            c as i8 - 48 - 1
         };
         Ok(Self::new_wrap(col, row))
     }
@@ -671,7 +671,9 @@ impl PartialPos {
         };
         let row = match chars.next() {
             Some(x) => match x {
-                x if x.is_ascii_digit() && (0..8).contains(&(x as i8 - 48)) => Some(x as i8 - 48),
+                x if x.is_ascii_digit() && (0..8).contains(&(x as i8 - 48)) => {
+                    Some(x as i8 - 48 - 1)
+                }
                 _ => None,
             },
             _ => None,
