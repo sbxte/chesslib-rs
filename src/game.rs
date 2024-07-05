@@ -12,7 +12,7 @@ pub enum PieceType {
 
 impl From<char> for PieceType {
     fn from(value: char) -> Self {
-        match value {
+        match value.to_ascii_uppercase() {
             'N' => Self::Knight,
             'B' => Self::Bishop,
             'R' => Self::Rook,
