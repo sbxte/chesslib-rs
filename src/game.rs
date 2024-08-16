@@ -268,7 +268,7 @@ impl Move {
                 if diff_y != turn.sign() * 2 {
                     if diff_y != turn.sign()
                         || diff_x.abs() > 1
-                        || (diff_x.abs() == 1 && piece_to.is_some())
+                        || (diff_x.abs() == 1 && !piece_to.is_some())
                     {
                         return Err(MoveErr::IllegalPieceMove);
                     }
