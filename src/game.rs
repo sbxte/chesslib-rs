@@ -10,6 +10,19 @@ pub enum PieceType {
     King,
 }
 
+impl PieceType {
+    fn to_group(self) -> PieceTypeGroup {
+        PieceTypeGroup(match self {
+            PieceType::Pawn => 1 << 0,
+            PieceType::Knight => 1 << 1,
+            PieceType::Bishop => 1 << 2,
+            PieceType::Rook => 1 << 3,
+            PieceType::Queen => 1 << 4,
+            PieceType::King => 1 << 5,
+        })
+    }
+}
+
 impl From<char> for PieceType {
     fn from(value: char) -> Self {
         match value.to_ascii_uppercase() {
@@ -20,6 +33,53 @@ impl From<char> for PieceType {
             'K' => Self::King,
             _ => Self::Pawn,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PieceTypeGroup(u32);
+
+impl std::ops::Deref for PieceTypeGroup {
+    type Target = u32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::BitOr for PieceTypeGroup {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(*self | *rhs)
+    }
+}
+
+impl std::ops::BitAnd for PieceTypeGroup {
+    type Output = Self;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Self(*self & *rhs)
+    }
+}
+
+impl std::ops::BitXor for PieceTypeGroup {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Self(*self ^ *rhs)
+    }
+}
+
+impl From<PieceTypeGroup> for u32 {
+    fn from(value: PieceTypeGroup) -> Self {
+        *value
+    }
+}
+
+impl PieceTypeGroup {
+    pub fn has(self, piece_type: PieceType) -> bool {
+        *(self & piece_type.to_group()) > 0
     }
 }
 
@@ -82,6 +142,7 @@ pub struct Board {
     pub grid: [Option<Piece>; 64],
     pub turn: PieceColor,
     pub winner: Option<PieceColor>,
+    pub in_check: Option<PieceColor>,
 }
 
 impl Default for Board {
@@ -96,6 +157,7 @@ impl Board {
             grid: [None; 64],
             turn: PieceColor::White,
             winner: None,
+            in_check: None,
         };
 
         // Pawns
@@ -148,37 +210,169 @@ impl Board {
         }
     }
 
-    pub fn apply_move(&mut self, pmove: Move) -> Result<(), TurnErr> {
+    pub fn apply_move(&mut self, pmove: Move) -> Result<(), ApplyMoveErr> {
+        // No need to continue if we have a winner already
         if self.winner.is_some() {
             return Ok(());
         }
+        // Make sure only the current turn can do a move
         if self.turn != pmove.piece_color {
-            return Err(TurnErr(self.turn));
+            return Err(ApplyMoveErr::TurnErr(self.turn));
         }
 
+        // Check for checks
+        if let Some(c) = self.in_check {
+            let mut clone = self.clone();
+            clone.in_check = None; // Ignore check checks for clone
+            let _ = clone.apply_move(pmove);
+            if clone.is_check(pmove.piece_color) {
+                return Err(ApplyMoveErr::InCheck(c));
+            }
+        }
+
+        // Move the piece
         let piece = self.grid[Self::pos_to_idx(pmove.from)];
         self.grid[Self::pos_to_idx(pmove.from)] = None;
         self.grid[Self::pos_to_idx(pmove.to)] = piece;
 
+        // Update whose turn is next
         self.turn = self.turn.invert();
 
+        // Update winner if king is captured
         if let Some(p) = pmove.captures
             && p == PieceType::King
         {
             self.winner = Some(pmove.piece_color);
         }
 
+        // Update board check sate
+        if self.is_check(pmove.piece_color.invert()) {
+            self.in_check = Some(pmove.piece_color.invert());
+        } else {
+            self.in_check = None;
+        }
+
         Ok(())
+    }
+
+    pub fn is_check(&self, turn: PieceColor) -> bool {
+        // Find king piece of turn's respective color
+        for (i, square) in self.grid.iter().enumerate() {
+            match square {
+                None => continue,
+                Some(x) => {
+                    if x.piece_type != PieceType::King || x.piece_color != turn {
+                        continue;
+                    }
+
+                    // Get coordinate for ease of checking
+                    dbg!(i / 8, i % 8);
+                    let pos = Pos::new_unchecked(i as i8 / 8, i as i8 % 8);
+
+                    // Define macro for ease of checking
+                    // Return true to exit is_check if found checking piece
+                    // Else return whether a piece exists or not for line of sight blocking
+                    macro_rules! check {
+                        ($x: expr, $y: expr, $group: expr) => {
+                            if let Some(f) = Pos::new_bounded($x, $y) {
+                                if let Some(p) = self.get_piece(f)
+                                    && PieceTypeGroup::has($group, p.piece_type)
+                                    && p.piece_color != turn
+                                {
+                                    return true;
+                                }
+                                self.get_piece(f).is_none()
+                            } else {
+                                false
+                            }
+                        };
+                    }
+
+                    // The amount of repitition here actually disgusts me
+                    // Check cardinals
+                    use PieceType::*;
+                    for step in 0..8 {
+                        if check!(pos.0 - step, pos.1, Rook.to_group() | Queen.to_group()) {
+                            break;
+                        }
+                    }
+                    for step in 0..8 {
+                        if check!(pos.0 - step, pos.1, Rook.to_group() | Queen.to_group()) {
+                            break;
+                        }
+                    }
+                    for step in 0..8 {
+                        if check!(pos.0 + step, pos.1, Rook.to_group() | Queen.to_group()) {
+                            break;
+                        }
+                    }
+                    for step in 0..8 {
+                        if check!(pos.0, pos.1 - step, Rook.to_group() | Queen.to_group()) {
+                            break;
+                        }
+                    }
+                    // Check diagonals
+                    for step in 0..8 {
+                        if check!(
+                            pos.0 - step,
+                            pos.1 - step,
+                            Bishop.to_group() | Queen.to_group()
+                        ) {
+                            break;
+                        }
+                    }
+                    for step in 0..8 {
+                        if check!(
+                            pos.0 + step,
+                            pos.1 - step,
+                            Bishop.to_group() | Queen.to_group()
+                        ) {
+                            break;
+                        }
+                    }
+                    for step in 0..8 {
+                        if check!(
+                            pos.0 - step,
+                            pos.1 + step,
+                            Bishop.to_group() | Queen.to_group()
+                        ) {
+                            break;
+                        }
+                    }
+                    for step in 0..8 {
+                        if check!(
+                            pos.0 + step,
+                            pos.1 + step,
+                            Bishop.to_group() | Queen.to_group()
+                        ) {
+                            break;
+                        }
+                    }
+                    // Knights
+                    check!(pos.0 - 2, pos.1 - 1, Knight.to_group());
+                    check!(pos.0 - 2, pos.1 + 1, Knight.to_group());
+                    check!(pos.0 - 1, pos.1 - 2, Knight.to_group());
+                    check!(pos.0 - 1, pos.1 + 2, Knight.to_group());
+                    check!(pos.0 + 2, pos.1 - 1, Knight.to_group());
+                    check!(pos.0 + 2, pos.1 + 1, Knight.to_group());
+                    check!(pos.0 + 1, pos.1 - 2, Knight.to_group());
+                    check!(pos.0 + 1, pos.1 + 2, Knight.to_group());
+                    // Pawns
+                    check!(pos.0 + 1, pos.1 + turn.sign(), Pawn.to_group());
+                    check!(pos.0 - 1, pos.1 + turn.sign(), Pawn.to_group());
+                }
+            }
+        }
+        false
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Error)]
-pub struct TurnErr(PieceColor);
-
-impl std::fmt::Display for TurnErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Invalid turn. Current turn: {}", self.0)
-    }
+pub enum ApplyMoveErr {
+    #[error("Invalid turn. Current turn: {0}")]
+    TurnErr(PieceColor),
+    #[error("Illegal move. {0} is currently in check")]
+    InCheck(PieceColor),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
