@@ -7,3 +7,6 @@ edition = "2021"
 anyhow = "1.0.82"
 nom = "7.1.3"
 thiserror = "1.0.59"
+
+[features]
+dbg = []

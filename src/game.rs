@@ -263,6 +263,10 @@ impl Move {
         // Legal piece movement
         let diff_y = to.1 - from.1;
         let diff_x = to.0 - from.0;
+
+        #[cfg(feature = "dbg")]
+        dbg!(from, piece_from, to, piece_to, turn);
+
         match piece_from.piece_type {
             PieceType::Pawn => {
                 if diff_y != turn.sign() * 2 {
@@ -418,6 +422,10 @@ impl Move {
                 }
             };
         }
+
+        #[cfg(feature = "dbg")]
+        dbg!(to, from, from_partial, piece_type, turn);
+
         match piece_type {
             PieceType::Pawn => {
                 if let PartialPos(Some(col), _) = from_partial {
