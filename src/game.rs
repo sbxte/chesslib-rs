@@ -438,8 +438,8 @@ impl Move {
                 }
             }
             PieceType::King => {
-                for c in (0.max(to.0 - 1))..(8.min(to.0 + 1)) {
-                    for r in (0.max(to.1 - 1))..(8.min(to.1 + 1)) {
+                for c in (0.max(to.0 - 1))..=(7.min(to.0 + 1)) {
+                    for r in (0.max(to.1 - 1))..=(7.min(to.1 + 1)) {
                         check!(c, r);
                     }
                 }
