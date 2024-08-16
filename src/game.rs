@@ -318,7 +318,7 @@ impl Move {
             PieceType::Queen => {
                 // Move in only cardinal or diagonal
                 if diff_x.abs() != diff_y.abs()
-                    || (diff_x + diff_y).abs() != (diff_x - diff_y).abs()
+                    && (diff_x + diff_y).abs() != (diff_x - diff_y).abs()
                 {
                     return Err(MoveErr::IllegalPieceMove);
                 }
@@ -326,7 +326,7 @@ impl Move {
                 // Cannot jump over pieces
                 let mut walk_x = 0;
                 let mut walk_y = 0;
-                while walk_x != diff_x && walk_y != diff_y {
+                while walk_x != diff_x - diff_x.signum() && walk_y != diff_y - diff_y.signum() {
                     walk_x += diff_x.signum();
                     walk_y += diff_y.signum();
                     if grid
