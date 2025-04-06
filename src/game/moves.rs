@@ -415,13 +415,13 @@ impl std::fmt::Display for MoveNotationErr {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Pos(pub i8, pub i8);
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PartialPos(pub Option<i8>, pub Option<i8>);
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ParseNotationErr {
     TooShort,
     InvalidColumn,
@@ -553,5 +553,31 @@ impl std::fmt::Display for ParseNotationErr {
                 ParseNotationErr::InvalidRow => "invalid row index",
             }
         )
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum CheckType {
+    #[default]
+    None,
+    Single(Pos),
+    Double(Pos, Pos),
+}
+
+impl CheckType {
+    pub fn is_none(self) -> bool {
+        matches!(self, Self::None)
+    }
+
+    pub fn is_some(self) -> bool {
+        !matches!(self, Self::None)
+    }
+
+    pub fn is_single(self) -> bool {
+        matches!(self, Self::Single(_))
+    }
+
+    pub fn is_double(self) -> bool {
+        matches!(self, Self::Double(_, _))
     }
 }

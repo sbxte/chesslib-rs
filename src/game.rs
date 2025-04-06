@@ -98,7 +98,7 @@ impl Board {
             let mut clone = self.clone();
             clone.in_check = None; // Ignore check checks for clone
             let _ = clone.apply_move(pmove);
-            if clone.is_check(pmove.piece_color) {
+            if clone.get_checks(pmove.piece_color).is_some() {
                 return Err(ApplyMoveErr::InCheck(c));
             }
         }
@@ -119,7 +119,7 @@ impl Board {
         }
 
         // Update board check sate
-        if self.is_check(pmove.piece_color.invert()) {
+        if self.get_checks(pmove.piece_color.invert()).is_some() {
             self.in_check = Some(pmove.piece_color.invert());
         } else {
             self.in_check = None;
@@ -128,7 +128,7 @@ impl Board {
         Ok(())
     }
 
-    pub fn is_check(&self, turn: PieceColor) -> bool {
+    pub fn get_checks(&self, turn: PieceColor) -> CheckType {
         // Find king piece of turn's respective color
         for (i, square) in self.grid.iter().enumerate() {
             match square {
@@ -142,9 +142,23 @@ impl Board {
                     dbg!(i / 8, i % 8);
                     let pos = Pos::new_unchecked(i as i8 / 8, i as i8 % 8);
 
+                    // Store checks found
+                    // Maximum of 2 because higher is impossible to achieve anyways
+                    let mut found = [None, None];
+
                     // Define macro for ease of checking
-                    // Return true to exit is_check if found checking piece
+                    // Return true to exit get_checks if found checking piece
                     // Else return whether a piece exists or not for line of sight blocking
+                    macro_rules! store_check {
+                        ($pos: expr) => {
+                            if found[0].is_none() {
+                                found[0] = Some($pos);
+                            } else {
+                                found[1] = Some($pos);
+                                return CheckType::Double(found[0].unwrap(), found[1].unwrap());
+                            }
+                        };
+                    }
                     macro_rules! check {
                         ($x: expr, $y: expr, $group: expr) => {
                             if let Some(f) = Pos::new_bounded($x, $y) {
@@ -152,7 +166,7 @@ impl Board {
                                     && PieceTypeGroup::has($group, p.piece_type)
                                     && p.piece_color != turn
                                 {
-                                    return true;
+                                    store_check!(f)
                                 }
                                 self.get_piece(f).is_none()
                             } else {
@@ -236,6 +250,6 @@ impl Board {
                 }
             }
         }
-        false
+        CheckType::None
     }
 }
