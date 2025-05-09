@@ -69,9 +69,9 @@ impl Move {
         ))
     }
 
-    pub fn is_legal(from: Pos, to: Pos, grid: &Board, turn: PieceColor) -> Result<(), MoveErr> {
+    pub fn is_legal(from: Pos, to: Pos, board: &Board, turn: PieceColor) -> Result<(), MoveErr> {
         // Must move existing piece
-        let piece_from = match grid.get_piece(from) {
+        let piece_from = match board.get_piece(from) {
             Some(p) => p,
             None => return Err(MoveErr::NoPiece),
         };
@@ -80,7 +80,7 @@ impl Move {
             return Err(MoveErr::MoveOpponent);
         }
         // Cannot take own piece
-        let piece_to = grid.get_piece(to);
+        let piece_to = board.get_piece(to);
         if let Some(piece_to) = piece_to {
             if piece_to.piece_color == turn {
                 return Err(MoveErr::TakeSelf);
@@ -90,9 +90,6 @@ impl Move {
         // Legal piece movement
         let diff_y = to.1 - from.1;
         let diff_x = to.0 - from.0;
-
-        #[cfg(feature = "dbg")]
-        dbg!(from, piece_from, to, piece_to, turn);
 
         match piece_from.piece_type {
             PieceType::Pawn => {
@@ -119,7 +116,7 @@ impl Move {
                 while walk_x != diff_x && walk_y != diff_y {
                     walk_x += diff_x.signum();
                     walk_y += diff_y.signum();
-                    if grid
+                    if board
                         .get_piece(Pos(from.0 + walk_x, from.1 + walk_y))
                         .is_some()
                     {
@@ -138,7 +135,7 @@ impl Move {
                 while walk_x != diff_x && walk_y != diff_y {
                     walk_x += diff_x.signum();
                     walk_y += diff_y.signum();
-                    if grid
+                    if board
                         .get_piece(Pos(from.0 + walk_x, from.1 + walk_y))
                         .is_some()
                     {
@@ -160,7 +157,7 @@ impl Move {
                 while walk_x != diff_x - diff_x.signum() && walk_y != diff_y - diff_y.signum() {
                     walk_x += diff_x.signum();
                     walk_y += diff_y.signum();
-                    if grid
+                    if board
                         .get_piece(Pos(from.0 + walk_x, from.1 + walk_y))
                         .is_some()
                     {
@@ -249,9 +246,6 @@ impl Move {
                 }
             };
         }
-
-        #[cfg(feature = "dbg")]
-        dbg!(to, from, from_partial, piece_type, turn);
 
         match piece_type {
             PieceType::Pawn => {
