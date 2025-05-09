@@ -7,11 +7,14 @@ pub(crate) use moves::*;
 pub(crate) use pieces::*;
 
 #[derive(Clone, Debug, PartialEq)]
+/// Board struct holding the context of a chess game.
+///
+/// The grid is structured as follows:
+/// [col, col, ..., col]
+/// each column would have [piece, piece, ..., piece]
+/// so the grid would be [[piece, ...], [piece, ...], ...]
+/// to access a piece at row and col, use grid[row * 8 + col]
 pub struct Board {
-    /// [col, col, ..., col]
-    /// each column would have [piece, piece, ..., piece]
-    /// so the grid would be [[piece, ...], [piece, ...], ...]
-    /// to access a piece at row and col, use grid[row * 8 + col]
     pub grid: [Option<Piece>; 64],
     pub turn: PieceColor,
     pub winner: Option<PieceColor>,
