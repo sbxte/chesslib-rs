@@ -10,14 +10,7 @@ pub enum PieceType {
 
 impl PieceType {
     pub(crate) fn to_group(self) -> PieceTypeGroup {
-        PieceTypeGroup(match self {
-            PieceType::Pawn => 1 << 0,
-            PieceType::Knight => 1 << 1,
-            PieceType::Bishop => 1 << 2,
-            PieceType::Rook => 1 << 3,
-            PieceType::Queen => 1 << 4,
-            PieceType::King => 1 << 5,
-        })
+        PieceTypeGroup::from(self)
     }
 }
 
@@ -34,11 +27,16 @@ impl From<char> for PieceType {
     }
 }
 
+type PieceTypeGroupInt = u8;
+
+/// Collection of [`PieceType`]s stored bitwise
+///
+/// Refer to [`PieceType::to_group`]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct PieceTypeGroup(u32);
+pub struct PieceTypeGroup(PieceTypeGroupInt);
 
 impl std::ops::Deref for PieceTypeGroup {
-    type Target = u32;
+    type Target = PieceTypeGroupInt;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -69,13 +67,27 @@ impl std::ops::BitXor for PieceTypeGroup {
     }
 }
 
-impl From<PieceTypeGroup> for u32 {
+impl From<PieceType> for PieceTypeGroup {
+    fn from(value: PieceType) -> Self {
+        Self(match value {
+            PieceType::Pawn => 1 << 0,
+            PieceType::Knight => 1 << 1,
+            PieceType::Bishop => 1 << 2,
+            PieceType::Rook => 1 << 3,
+            PieceType::Queen => 1 << 4,
+            PieceType::King => 1 << 5,
+        })
+    }
+}
+
+impl From<PieceTypeGroup> for PieceTypeGroupInt {
     fn from(value: PieceTypeGroup) -> Self {
         *value
     }
 }
 
 impl PieceTypeGroup {
+    /// Returns whether this group contains the specified [`PieceType`]
     pub fn has(self, piece_type: PieceType) -> bool {
         *(self & piece_type.to_group()) > 0
     }
