@@ -71,11 +71,16 @@ impl Board {
         board
     }
 
-    fn pos_to_idx(pos: Pos) -> usize {
+    fn pos_to_idx(pos: Vec2) -> usize {
         (pos.0 * 8 + pos.1) as usize
     }
 
-    pub fn get_piece(&self, pos: Pos) -> Option<&Piece> {
+    fn idx_to_pos(idx: usize) -> Vec2 {
+        let pos = Vec2::new_unchecked(idx as i8 / 8, idx as i8 % 8);
+        pos
+    }
+
+    pub fn get_piece(&self, pos: Vec2) -> Option<&Piece> {
         self.grid[Self::pos_to_idx(pos)].as_ref()
     }
 
@@ -142,8 +147,8 @@ impl Board {
                     }
 
                     // Get coordinate for ease of checking
-                    dbg!(i / 8, i % 8);
-                    let pos = Pos::new_unchecked(i as i8 / 8, i as i8 % 8);
+                    // FIXME: Remove this
+                    let pos = Vec2::new_unchecked(i as i8 / 8, i as i8 % 8);
 
                     // Store checks found
                     // Maximum of 2 because higher is impossible to achieve anyways
@@ -164,7 +169,7 @@ impl Board {
                     }
                     macro_rules! check {
                         ($x: expr, $y: expr, $group: expr) => {
-                            if let Some(f) = Pos::new_bounded($x, $y) {
+                            if let Some(f) = Vec2::new_bounded($x, $y) {
                                 if let Some(p) = self.get_piece(f)
                                     && PieceTypeGroup::has($group, p.piece_type)
                                     && p.piece_color != turn
@@ -254,5 +259,523 @@ impl Board {
             }
         }
         CheckType::None
+    }
+
+    // Generates legal moves from a given board state
+    pub fn gen_moves(&self) -> Vec<Move> {
+        let moves: Vec<_> = self
+            .grid
+            .iter()
+            .enumerate()
+            .filter_map(|(i, x)| x.map(|x| (x, Self::idx_to_pos(i))))
+            .filter(|(piece, _)| piece.piece_color == self.turn)
+            .map(|(piece, pos)| match piece.piece_type {
+                PieceType::Pawn => {
+                    let moves = match piece.piece_color {
+                        PieceColor::White => [
+                            Vec2 { 0: 0, 1: 2 },
+                            Vec2 { 0: 0, 1: 1 },
+                            Vec2 { 0: 1, 1: 1 },
+                            Vec2 { 0: -1, 1: 1 },
+                        ],
+                        PieceColor::Black => [
+                            Vec2 { 0: 0, 1: -2 },
+                            Vec2 { 0: 0, 1: -1 },
+                            Vec2 { 0: 1, 1: -1 },
+                            Vec2 { 0: -1, 1: -1 },
+                        ],
+                    };
+                    moves
+                        .into_iter()
+                        .filter(move |m| {
+                            let to = pos + *m;
+                            if Vec2::unbounded(to.0, to.1) {
+                                return false;
+                            }
+
+                            if m.1.abs() >= 2 {
+                                (piece.piece_color == PieceColor::White && pos.1 == 1)
+                                    || (piece.piece_color == PieceColor::Black && pos.1 == 6)
+                            } else if m.0.abs() >= 1 {
+                                match self.get_piece(to) {
+                                    None => false,
+                                    Some(p) => p.piece_color != piece.piece_color,
+                                }
+                            } else {
+                                self.get_piece(to).is_none()
+                            }
+                        })
+                        .filter_map(|m| {
+                            Move::new(
+                                pos,
+                                pos + m,
+                                piece.piece_type,
+                                piece.piece_color,
+                                self.get_piece(pos + m).map(|p| p.piece_type),
+                                &self,
+                            )
+                            .ok()
+                        })
+                        .collect::<Vec<_>>()
+                }
+                PieceType::Knight => {
+                    let moves = [
+                        Vec2 { 0: 1, 1: 2 },
+                        Vec2 { 0: -1, 1: 2 },
+                        Vec2 { 0: 1, 1: -2 },
+                        Vec2 { 0: -1, 1: -2 },
+                        Vec2 { 0: 2, 1: 1 },
+                        Vec2 { 0: 2, 1: -1 },
+                        Vec2 { 0: -2, 1: 1 },
+                        Vec2 { 0: -2, 1: -1 },
+                    ];
+
+                    moves
+                        .into_iter()
+                        .filter(move |m| {
+                            let to = pos + *m;
+                            if Vec2::unbounded(to.0, to.1) {
+                                return false;
+                            }
+
+                            match self.get_piece(to) {
+                                None => true,
+                                Some(p) => p.piece_color != piece.piece_color,
+                            }
+                        })
+                        .filter_map(|m| {
+                            Move::new(
+                                pos,
+                                pos + m,
+                                piece.piece_type,
+                                piece.piece_color,
+                                self.get_piece(pos + m).map(|p| p.piece_type),
+                                &self,
+                            )
+                            .ok()
+                        })
+                        .collect()
+                }
+                PieceType::Bishop => {
+                    let mut moves = vec![];
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: d, 1: d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: -d, 1: d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: d, 1: -d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: -d, 1: -d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    moves
+                        .into_iter()
+                        .filter_map(|m| {
+                            Move::new(
+                                pos,
+                                pos + m,
+                                piece.piece_type,
+                                piece.piece_color,
+                                self.get_piece(pos + m).map(|p| p.piece_type),
+                                &self,
+                            )
+                            .ok()
+                        })
+                        .collect()
+                }
+                PieceType::Rook => {
+                    let mut moves = vec![];
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: d, 1: 0 };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: 0, 1: d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: -d, 1: 0 };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: 0, 1: -d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    moves
+                        .into_iter()
+                        .filter_map(|m| {
+                            Move::new(
+                                pos,
+                                pos + m,
+                                piece.piece_type,
+                                piece.piece_color,
+                                self.get_piece(pos + m).map(|p| p.piece_type),
+                                &self,
+                            )
+                            .ok()
+                        })
+                        .collect()
+                }
+                PieceType::Queen => {
+                    let mut moves = vec![];
+
+                    // Diagonals
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: d, 1: d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: -d, 1: d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: d, 1: -d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: -d, 1: -d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    // Cardinals
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: d, 1: 0 };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: 0, 1: d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: -d, 1: 0 };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    for d in 1..8 {
+                        let to = pos + Vec2 { 0: 0, 1: -d };
+                        if Vec2::unbounded(to.0, to.1) {
+                            break;
+                        }
+
+                        match self.get_piece(to) {
+                            None => {
+                                moves.push(to);
+                            }
+                            Some(p) => {
+                                if p.piece_color != piece.piece_color {
+                                    moves.push(to);
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    moves
+                        .into_iter()
+                        .filter_map(|m| {
+                            Move::new(
+                                pos,
+                                pos + m,
+                                piece.piece_type,
+                                piece.piece_color,
+                                self.get_piece(pos + m).map(|p| p.piece_type),
+                                &self,
+                            )
+                            .ok()
+                        })
+                        .collect()
+                }
+                PieceType::King => {
+                    let moves = [
+                        Vec2 { 0: 1, 1: 0 },
+                        Vec2 { 0: 1, 1: 1 },
+                        Vec2 { 0: 0, 1: 1 },
+                        Vec2 { 0: -1, 1: 1 },
+                        Vec2 { 0: -1, 1: 0 },
+                        Vec2 { 0: -1, 1: -1 },
+                        Vec2 { 0: 0, 1: -1 },
+                        Vec2 { 0: 1, 1: -1 },
+                    ];
+
+                    moves
+                        .into_iter()
+                        .filter(move |m| {
+                            let to = pos + *m;
+                            if Vec2::unbounded(to.0, to.1) {
+                                return false;
+                            }
+
+                            match self.get_piece(to) {
+                                None => true,
+                                Some(p) => p.piece_color != piece.piece_color,
+                            }
+                        })
+                        .filter_map(|m| {
+                            Move::new(
+                                pos,
+                                pos + m,
+                                piece.piece_type,
+                                piece.piece_color,
+                                self.get_piece(pos + m).map(|p| p.piece_type),
+                                &self,
+                            )
+                            .ok()
+                        })
+                        .collect()
+                }
+            })
+            .flatten()
+            .collect();
+
+        moves
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn game_start_gen_moves() {
+        let board = Board::new();
+        let moves = board.gen_moves();
+        assert_eq!(
+            moves
+                .iter()
+                .filter(|m| matches!(
+                    m.piece_type,
+                    PieceType::Bishop | PieceType::Rook | PieceType::Queen | PieceType::King
+                ))
+                .count(),
+            0
+        );
+        assert_eq!(
+            moves
+                .iter()
+                .filter(|m| m.piece_type == PieceType::Pawn)
+                .count(),
+            16
+        );
+        assert_eq!(
+            moves
+                .iter()
+                .filter(|m| m.piece_type == PieceType::Knight)
+                .count(),
+            4
+        );
     }
 }

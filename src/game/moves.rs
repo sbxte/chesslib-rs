@@ -11,8 +11,8 @@ pub enum ApplyMoveErr {
 #[derive(Clone, Copy, Debug, PartialEq)]
 /// Moves must always be valid
 pub struct Move {
-    pub from: Pos,
-    pub to: Pos,
+    pub from: Vec2,
+    pub to: Vec2,
     pub piece_type: PieceType,
     pub piece_color: PieceColor,
     pub captures: Option<PieceType>,
@@ -36,8 +36,8 @@ pub enum MoveNotationErr {
 
 impl Move {
     pub fn new_unchecked(
-        from: Pos,
-        to: Pos,
+        from: Vec2,
+        to: Vec2,
         piece_type: PieceType,
         piece_color: PieceColor,
         captures: Option<PieceType>,
@@ -52,8 +52,8 @@ impl Move {
     }
 
     pub fn new(
-        from: Pos,
-        to: Pos,
+        from: Vec2,
+        to: Vec2,
         piece_type: PieceType,
         piece_color: PieceColor,
         captures: Option<PieceType>,
@@ -69,7 +69,7 @@ impl Move {
         ))
     }
 
-    pub fn is_legal(from: Pos, to: Pos, board: &Board, turn: PieceColor) -> Result<(), MoveErr> {
+    pub fn is_legal(from: Vec2, to: Vec2, board: &Board, turn: PieceColor) -> Result<(), MoveErr> {
         // Must move existing piece
         let piece_from = match board.get_piece(from) {
             Some(p) => p,
@@ -117,7 +117,7 @@ impl Move {
                     walk_x += diff_x.signum();
                     walk_y += diff_y.signum();
                     if board
-                        .get_piece(Pos(from.0 + walk_x, from.1 + walk_y))
+                        .get_piece(Vec2(from.0 + walk_x, from.1 + walk_y))
                         .is_some()
                     {
                         return Err(MoveErr::IllegalPieceMove);
@@ -136,7 +136,7 @@ impl Move {
                     walk_x += diff_x.signum();
                     walk_y += diff_y.signum();
                     if board
-                        .get_piece(Pos(from.0 + walk_x, from.1 + walk_y))
+                        .get_piece(Vec2(from.0 + walk_x, from.1 + walk_y))
                         .is_some()
                     {
                         return Err(MoveErr::IllegalPieceMove);
@@ -158,7 +158,7 @@ impl Move {
                     walk_x += diff_x.signum();
                     walk_y += diff_y.signum();
                     if board
-                        .get_piece(Pos(from.0 + walk_x, from.1 + walk_y))
+                        .get_piece(Vec2(from.0 + walk_x, from.1 + walk_y))
                         .is_some()
                     {
                         return Err(MoveErr::IllegalPieceMove);
@@ -207,7 +207,7 @@ impl Move {
         let is_capture = matches!(input.chars().nth(0).unwrap(), 'x');
         let input = if is_capture { &input[1..] } else { input };
 
-        let to = match Pos::from_notation(&input[input.len() - 2..]) {
+        let to = match Vec2::from_notation(&input[input.len() - 2..]) {
             Err(x) => return Err(MoveNotationErr::ParseNotationError(x)),
             Ok(x) => x,
         };
@@ -223,7 +223,7 @@ impl Move {
         // Tricky part, infer where the piece moved from
         let from_partial = PartialPos::from_coord(&input[..input.len() - 2]);
         if let PartialPos(Some(col), Some(row)) = from_partial {
-            let f = Pos(col, row);
+            let f = Vec2(col, row);
             let p = match board.get_piece(f) {
                 None => return Err(MoveNotationErr::MoveErr(MoveErr::NoPiece)),
                 Some(x) => x,
@@ -236,7 +236,7 @@ impl Move {
         let mut from = None;
         macro_rules! check {
             ($x: expr, $y: expr) => {
-                if let Some(f) = Pos::new_bounded($x, $y)
+                if let Some(f) = Vec2::new_bounded($x, $y)
                     && let Some(p) = board.get_piece(f)
                     && p.piece_type == piece_type
                     && p.piece_color == turn
@@ -410,7 +410,7 @@ impl std::fmt::Display for MoveNotationErr {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Pos(pub i8, pub i8);
+pub struct Vec2(pub i8, pub i8);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PartialPos(pub Option<i8>, pub Option<i8>);
@@ -422,7 +422,7 @@ pub enum ParseNotationErr {
     InvalidRow,
 }
 
-impl Pos {
+impl Vec2 {
     pub fn unbounded(col: i8, row: i8) -> bool {
         !(0..8).contains(&col) || !(0..8).contains(&row)
     }
@@ -484,6 +484,36 @@ impl Pos {
     }
 }
 
+impl ::std::ops::Add<Vec2> for Vec2 {
+    type Output = Self;
+    fn add(self, rhs: Vec2) -> Self::Output {
+        Self {
+            0: self.0 + rhs.0,
+            1: self.1 + rhs.1,
+        }
+    }
+}
+
+impl ::std::ops::Sub<Vec2> for Vec2 {
+    type Output = Self;
+    fn sub(self, rhs: Vec2) -> Self::Output {
+        Self {
+            0: self.0 - rhs.0,
+            1: self.1 - rhs.1,
+        }
+    }
+}
+
+impl ::std::ops::Neg for Vec2 {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        Self {
+            0: -self.0,
+            1: -self.1,
+        }
+    }
+}
+
 impl PartialPos {
     /// Possible values are
     /// 1
@@ -524,13 +554,13 @@ impl PartialPos {
     }
 }
 
-impl From<(i8, i8)> for Pos {
+impl From<(i8, i8)> for Vec2 {
     fn from(value: (i8, i8)) -> Self {
         Self::new_wrap(value.0, value.1)
     }
 }
 
-impl From<(u8, u8)> for Pos {
+impl From<(u8, u8)> for Vec2 {
     fn from(value: (u8, u8)) -> Self {
         Self::new_unchecked(value.0 as i8, value.1 as i8)
     }
@@ -554,8 +584,8 @@ impl std::fmt::Display for ParseNotationErr {
 pub enum CheckType {
     #[default]
     None,
-    Single(Pos),
-    Double(Pos, Pos),
+    Single(Vec2),
+    Double(Vec2, Vec2),
 }
 
 impl CheckType {
@@ -573,5 +603,32 @@ impl CheckType {
 
     pub fn is_double(self) -> bool {
         matches!(self, Self::Double(_, _))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn legal_pawn_moves() {
+        let mut board = Board::new();
+        board.grid = [None; 64];
+
+        use PieceColor::*;
+        use PieceType::*;
+        board.grid[Board::pos_to_idx(Vec2::from_notation("a0").unwrap())] =
+            Some(Piece::new(King, White));
+        board.grid[Board::pos_to_idx(Vec2::from_notation("h8").unwrap())] =
+            Some(Piece::new(King, Black));
+
+        board.grid[Board::pos_to_idx(Vec2::from_notation("d2").unwrap())] =
+            Some(Piece::new(Pawn, White));
+        board.grid[Board::pos_to_idx(Vec2::from_notation("e3").unwrap())] =
+            Some(Piece::new(Pawn, White));
+        assert!(Move::parse_notation("d4", &board, board.turn).is_ok());
+        assert!(Move::parse_notation("d5", &board, board.turn).is_err());
+        assert!(Move::parse_notation("e4", &board, board.turn).is_ok());
+        assert!(Move::parse_notation("e5", &board, board.turn).is_err());
     }
 }

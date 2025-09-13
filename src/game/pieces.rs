@@ -33,6 +33,7 @@ type PieceTypeGroupInt = u8;
 ///
 /// Refer to [`PieceType::to_group`]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(transparent)]
 pub struct PieceTypeGroup(PieceTypeGroupInt);
 
 impl std::ops::Deref for PieceTypeGroup {
