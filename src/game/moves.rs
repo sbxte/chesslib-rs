@@ -8,7 +8,7 @@ pub enum ApplyMoveErr {
     InCheck(PieceColor),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Moves must always be valid
 pub struct Move {
     pub from: Vec2,
